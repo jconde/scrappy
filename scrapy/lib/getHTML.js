@@ -10,7 +10,7 @@ var request = require('request'),
 	*	@param {String}	site  - Web site base URL
 	*	@param {String}	path  - URL path to target
 	*	@param {String} proxy - Proxy to use on requests
-	*	@returns {Promise} - Promise that will resolve to the target HTML or reject to a request error
+	*	@return {Promise} - Promise that will resolve to the target HTML or reject to a request error
 	*
 	*/
 
