@@ -65,7 +65,7 @@ function getHTML(site, path, proxy) {
 										'Connection': 'keep-alive',
 										'Content-Length': '4547',
 										'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0',
-										'Origin': 'http://' + site,
+										'Origin': site,
 										'X-Distil-Ajax': xah,
 										'Content-Type': 'text/plain;charset=UTF-8',
 										'Accept': '*/*',
