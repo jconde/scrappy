@@ -1,0 +1,14 @@
+{
+  "name": "scrappy-examples",
+  "version": "1.0.0",
+  "description": "Tire prices scrap using scrappy",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Javier Conde",
+  "license": "ISC",
+  "dependencies": {
+    "mongodb": "^2.1.16"
+  }
+}
