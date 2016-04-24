@@ -79,8 +79,6 @@ class Scrappy {
 
 		var self = this;
 
-		var tries = NaN;
-
 		return new Promise(function tryGetHTML(fullfill, reject) {
 			var proxyList = self.proxyList;
 
@@ -133,9 +131,7 @@ class Scrappy {
 						}, function(err, response, html) {
 							if (err) {
 								self.proxyList.splice(proxyIndex, 1);
-								if (err.code == 'ETIMEDOUT' && tries++ < 5)
-									return tryGetHTML(fullfill, reject);
-								return reject(err);
+								return tryGetHTML(fullfill, reject);
 							} else {
 								xju = response.headers['x-ju'];
 								xah = response.headers['x-ah'];
@@ -159,7 +155,7 @@ class Scrappy {
 								}, function(err, response, html) {
 										if (err) {
 											self.proxyList.splice(proxyIndex, 1);
-											return reject(err);
+											return tryGetHTML(fullfill, reject);
 										} else {
 											var cookie = response.headers['set-cookie'].map((cookie) => cookie.split(';')[0]).join('; ');
 											request({
@@ -178,9 +174,8 @@ class Scrappy {
 												}
 											}, function(err, response, html) {
 												if (err) {
-													if (err.code == 'ETIMEDOUT' && tries++ < 5)
-														return tryGetHTML(fullfill, reject);
-													return reject(err);
+													self.proxyList.splice(proxyIndex, 1);
+													return tryGetHTML(fullfill, reject);
 												} else
 													return fullfill(html);
 											});
