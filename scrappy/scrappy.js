@@ -1,7 +1,9 @@
 'use strict'
 
 var request = require('request'),
-		cheerio = require('cheerio');
+		cheerio = require('cheerio'),
+		url = require('url'),
+		fs = require('fs');
 
 class Scrappy {
 	
@@ -17,10 +19,28 @@ class Scrappy {
 		*/
 	constructor (proxyFeeder, debug) {
 		this.debug = debug;
-		this.getProxies = proxyFeeder ? proxyFeeder : (proxyList) => proxyList.push(undefined); // Undefined proxy means no proxy on request
+		this.getProxies = proxyFeeder ? proxyFeeder : Promise.resolve([undefined]); // Undefined proxy means no proxy on request
 		this.proxyList = [];
-		this.getProxies(this.proxyList);
+		this.proxyList = this.getProxies();//.then(list => console.log(list));//this.proxyList = list);
 	}
+
+	/**
+		*	Model that contain scrapping directions
+		* typedef {Object} Model
+		* @property {string} locator	-	JQuery locator to identify an item container
+		* @property {Object} fields		-	Map of fields to capture with their {captureDefinition}
+		*																it may contain a `_next` field to find next page, useful
+		*																when capturing through pagination
+		*/
+
+	/**
+		* Capture definition for a single item
+		*	typedef {Object} captureDefinition
+		* @property {string} find					- JQuery find field within the locator
+		*	@property {type} string					- Type of data [href|text]
+		*	@property {Function} transform 	- Function to be applied to the value
+		*
+		*/
 	
 	/**
 		*	scrap
@@ -38,7 +58,7 @@ class Scrappy {
 		*/
 	scrap(site, path, models, callback, _obj) {
 		this.getHTML(site, path)
-		.catch(err => {
+		.catch(err => { fs.appendFileSync('err.log',err);
 			if (this.debug) console.log('Error retrieving ' + site + path);
 			callback(err, _obj);
 		})
@@ -48,8 +68,11 @@ class Scrappy {
 					model = models[0],
 					$ = cheerio.load(html);
 			$(model.locator).map(function () {
+				obj = JSON.parse(JSON.stringify(obj)),
 				Object.keys(model.fields).forEach(k => {
-					if (model.fields[k].type == 'text')
+					if (k == '_next')
+						obj[k] = $(model.fields[k].find).attr('href');
+					else if (model.fields[k].type == 'text')
 						obj[k] = $(this).find(model.fields[k].find).text();
 					else
 						obj[k] = $(this).find(model.fields[k].find).attr(model.fields[k].type);
@@ -57,9 +80,16 @@ class Scrappy {
 						obj[k] = model.fields[k].transform(obj[k]);
 				});
 				if (self.debug) console.log(obj);
-				return models.length > 1 ? self.scrap(site, obj.url, models.slice(1), callback, obj) : callback(null, obj);
+				
+				if (obj._next) {
+					var nextURL = url.parse(url.resolve(site+path, obj._next));
+					self.scrap(nextURL.protocol + '//' + nextURL.host, nextURL.path, models, callback, _obj);
+				}
+				var newURL = url.parse(url.resolve(site+path, obj.url));
+				return models.length > 1 ? self.scrap(newURL.protocol + '//' + newURL.host, newURL.path, models.slice(1), callback, obj) : callback(null, obj);
 			});
-		});
+		})
+		.catch(err => fs.appendFileSync('err.log',err));
 	}
 	
 	/**
@@ -82,8 +112,8 @@ class Scrappy {
 		return new Promise(function tryGetHTML(fullfill, reject) {
 			var proxyList = self.proxyList;
 
-			if (!self.proxyList.length)
-				getProxies(proxyList);
+			if (!proxyList.length)
+				proxyList = getProxies();
 			
 			// Random proxy
 			var proxyIndex = Math.floor(Math.random() * proxyList.length),
@@ -104,7 +134,7 @@ class Scrappy {
 				}
 			}, function(err, response, html) {
 				if (err) {
-					self.proxyList.splice(proxyIndex, 1);
+					// self.proxyList.splice(proxyIndex, 1);
 					return tryGetHTML(fullfill, reject);
 				} else {
 					if (html.indexOf('distil_r_blocked') < 0)
