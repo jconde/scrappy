@@ -1,4 +1,11 @@
-# scrappywheel
-Meteor/React Web Scraper
+# Scrappy
 
-This project is composed by 'Scrappy', a configurable Node.js scraping engine and 'Wheel', a Meteor/React frontend.
+Node.js Web Scrapper
+
+Scrappy is an html/jquery oriented web scrapper that uses user constructed models to define a scrapping strategy.
+
+It features:
+* Anonymous proxy feeding
+* Multilevel navigation
+* Pagination
+* Transformation
