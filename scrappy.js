@@ -76,7 +76,7 @@ class Scrappy {
 				
 				if (obj.url) {
 					var newURL = url.parse(url.resolve(site+path, obj.url));
-					return self.scrap(newURL.protocol + '//' + newURL.host, newURL.path, models.slice(1), callback, obj);
+					self.scrap(newURL.protocol + '//' + newURL.host, newURL.path, models.slice(1), callback, obj);
 				} else {
 					callback(null, obj);
 				}
