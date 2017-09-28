@@ -13,7 +13,7 @@ class Scrappy {
 		* Instantiates the class, it has two optional parameters that defines a proxy feeder and turns on
 		* the debug mode.
 		*
-		*	@param {Function} proxyFeeder	-	Function that receives populates the proxy list received as a parameter
+		*	@param {function} proxyFeeder	-	Function that receives populates the proxy list received as a parameter
 		*	@param {Boolean} debug	-	When true, debugging messages show up
 		*
 		*/
@@ -21,24 +21,23 @@ class Scrappy {
 		this.debug = debug;
 		this.getProxies = proxyFeeder ? proxyFeeder : Promise.resolve([undefined]); // Undefined proxy means no proxy on request
 		this.proxyList = [];
-		this.proxyList = this.getProxies();//.then(list => console.log(list));//this.proxyList = list);
+		this.getProxies.then(list => this.proxyList = list);
 	}
 
 	/**
 		*	Model that contain scrapping directions
 		* typedef {Object} Model
-		* @property {string} locator	-	JQuery locator to identify an item container
-		* @property {Object} fields		-	Map of fields to capture with their {captureDefinition}
-		*																it may contain a `_next` field to find next page, useful
-		*																when capturing through pagination
+		* @property {string} locator					-	JQuery locator to identify an item container
+		* @property {Object} fields						-	Map of fields to capture with their {captureDefinition}
+		* @property {captureDefinition} next	- Definition to find next page, used to capture through pagination
 		*/
 
 	/**
 		* Capture definition for a single item
 		*	typedef {Object} captureDefinition
 		* @property {string} find					- JQuery find field within the locator
-		*	@property {type} string					- Type of data [href|text]
-		*	@property {Function} transform 	- Function to be applied to the value
+		*	@property {string} type					- Type of data [href|text]
+		*	@property {function} transform 	- Function to be applied to the value
 		*
 		*/
 	
@@ -49,19 +48,15 @@ class Scrappy {
 		*	captured under the field `url` to navigate through the site and will accumulate the captured data in
 		*	a single final object.
 		*
-		*	@param {String} site				- URL of the site we want to scrap, e.g. 'http://www.example.com'
-		*	@param {String} path				-	Path query inside the site for the page, e.g. '/main/en-US/page.html'
+		*	@param {string} site				- URL of the site we want to scrap, e.g. 'http://www.example.com'
+		*	@param {string} path				-	Path query inside the site for the page, e.g. '/main/en-US/page.html'
 		*	@param {Array} models				-	Array of {Model} objects described above
-		*	@param {Function} callback	-	Function that receives an error in the first parameter and/or the retrieved object in the second parameter
+		*	@param {function} callback	-	Function that receives an error in the first parameter and/or the retrieved object in the second parameter
 		*	@param {Object} _obj				-	Captured object that contains the fields captured on each level
 		*
 		*/
 	scrap(site, path, models, callback, _obj) {
 		this.getHTML(site, path)
-		.catch(err => { fs.appendFileSync('err.log',err);
-			if (this.debug) console.log('Error retrieving ' + site + path);
-			callback(err, _obj);
-		})
 		.then(html => {
 			var self = this,
 					obj = _obj || {},
@@ -70,9 +65,7 @@ class Scrappy {
 			$(model.locator).map(function () {
 				obj = JSON.parse(JSON.stringify(obj)),
 				Object.keys(model.fields).forEach(k => {
-					if (k == '_next')
-						obj[k] = $(model.fields[k].find).attr('href');
-					else if (model.fields[k].type == 'text')
+					if (model.fields[k].type == 'text')
 						obj[k] = $(this).find(model.fields[k].find).text();
 					else
 						obj[k] = $(this).find(model.fields[k].find).attr(model.fields[k].type);
@@ -81,15 +74,24 @@ class Scrappy {
 				});
 				if (self.debug) console.log(obj);
 				
-				if (obj._next) {
-					var nextURL = url.parse(url.resolve(site+path, obj._next));
-					self.scrap(nextURL.protocol + '//' + nextURL.host, nextURL.path, models, callback, _obj);
+				if (obj.url) {
+					var newURL = url.parse(url.resolve(site+path, obj.url));
+					return self.scrap(newURL.protocol + '//' + newURL.host, newURL.path, models.slice(1), callback, obj);
+				} else {
+					callback(null, obj);
 				}
-				var newURL = url.parse(url.resolve(site+path, obj.url));
-				return models.length > 1 ? self.scrap(newURL.protocol + '//' + newURL.host, newURL.path, models.slice(1), callback, obj) : callback(null, obj);
 			});
+			
+			if (model.next) {
+				var next = $(model.next.find).attr('href');
+				var nextURL = url.parse(url.resolve(site+path, next));
+				self.scrap(nextURL.protocol + '//' + nextURL.host, nextURL.path, models, callback, _obj);
+			}
 		})
-		.catch(err => fs.appendFileSync('err.log',err));
+		.catch(err => {
+			if (self.debug) console.error(err);
+			callback(err, _obj)
+		});
 	}
 	
 	/**
@@ -99,8 +101,8 @@ class Scrappy {
 		* protection methods to find the final HTML target, uses a random proxy and
 		* retries when proxy fails 
 		*
-		*	@param {String}	site - Target site URL ('http://example.com')
-		*	@param {String}	path - Target path ('/tires')
+		*	@param {string}	site - Target site URL ('http://example.com')
+		*	@param {string}	path - Target path ('/tires')
 		*	@return {Promise} - Promise that will resolve to the target HTML or reject to a request error
 		*
 		*/
